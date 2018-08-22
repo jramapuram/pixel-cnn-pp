@@ -8,8 +8,8 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torchvision import datasets, transforms, utils
 from tensorboardX import SummaryWriter
-from utils import * 
-from model import * 
+from utils import *
+from model import *
 from PIL import Image
 
 parser = argparse.ArgumentParser()
@@ -61,30 +61,30 @@ rescaling_inv = lambda x : .5 * x  + .5
 kwargs = {'num_workers':1, 'pin_memory':True, 'drop_last':True}
 ds_transforms = transforms.Compose([transforms.ToTensor(), rescaling])
 
-if 'mnist' in args.dataset : 
-    train_loader = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, download=True, 
-                        train=True, transform=ds_transforms), batch_size=args.batch_size, 
+if 'mnist' in args.dataset :
+    train_loader = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, download=True,
+                        train=True, transform=ds_transforms), batch_size=args.batch_size,
                             shuffle=True, **kwargs)
-    
-    test_loader  = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, train=False, 
+
+    test_loader  = torch.utils.data.DataLoader(datasets.MNIST(args.data_dir, train=False,
                     transform=ds_transforms), batch_size=args.batch_size, shuffle=True, **kwargs)
-    
+
     loss_op   = lambda real, fake : discretized_mix_logistic_loss_1d(real, fake)
     sample_op = lambda x : sample_from_discretized_mix_logistic_1d(x, args.nr_logistic_mix)
 
-elif 'cifar' in args.dataset : 
-    train_loader = torch.utils.data.DataLoader(datasets.CIFAR10(args.data_dir, train=True, 
+elif 'cifar' in args.dataset :
+    train_loader = torch.utils.data.DataLoader(datasets.CIFAR10(args.data_dir, train=True,
         download=True, transform=ds_transforms), batch_size=args.batch_size, shuffle=True, **kwargs)
-    
-    test_loader  = torch.utils.data.DataLoader(datasets.CIFAR10(args.data_dir, train=False, 
+
+    test_loader  = torch.utils.data.DataLoader(datasets.CIFAR10(args.data_dir, train=False,
                     transform=ds_transforms), batch_size=args.batch_size, shuffle=True, **kwargs)
-    
+
     loss_op   = lambda real, fake : discretized_mix_logistic_loss(real, fake)
     sample_op = lambda x : sample_from_discretized_mix_logistic(x, args.nr_logistic_mix)
 else :
     raise Exception('{} dataset not in {mnist, cifar10}'.format(args.dataset))
 
-model = PixelCNN(nr_resnet=args.nr_resnet, nr_filters=args.nr_filters, 
+model = PixelCNN(nr_resnet=args.nr_resnet, nr_filters=args.nr_filters,
             input_channels=input_channels, nr_logistic_mix=args.nr_logistic_mix)
 model = model.cuda()
 
@@ -124,21 +124,21 @@ for epoch in range(args.max_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        train_loss += loss.data[0]
-        if (batch_idx +1) % args.print_every == 0 : 
+        train_loss += loss.item()
+        if (batch_idx +1) % args.print_every == 0 :
             deno = args.print_every * args.batch_size * np.prod(obs) * np.log(2.)
             writer.add_scalar('train/bpd', (train_loss / deno), writes)
             print('loss : {:.4f}, time : {:.4f}'.format(
-                (train_loss / deno), 
+                (train_loss / deno),
                 (time.time() - time_)))
             train_loss = 0.
             writes += 1
             time_ = time.time()
-            
+
 
     # decrease learning rate
     scheduler.step()
-    
+
     torch.cuda.synchronize()
     model.eval()
     test_loss = 0.
@@ -147,17 +147,17 @@ for epoch in range(args.max_epochs):
         input_var = Variable(input)
         output = model(input_var)
         loss = loss_op(input_var, output)
-        test_loss += loss.data[0]
+        test_loss += loss.item()
         del loss, output
 
     deno = batch_idx * args.batch_size * np.prod(obs) * np.log(2.)
     writer.add_scalar('test/bpd', (test_loss / deno), writes)
     print('test loss : %s' % (test_loss / deno))
-    
-    if (epoch + 1) % args.save_interval == 0: 
+
+    if (epoch + 1) % args.save_interval == 0:
         torch.save(model.state_dict(), 'models/{}_{}.pth'.format(model_name, epoch))
         print('sampling...')
         sample_t = sample(model)
         sample_t = rescaling_inv(sample_t)
-        utils.save_image(sample_t,'images/{}_{}.png'.format(model_name, epoch), 
+        utils.save_image(sample_t,'images/{}_{}.png'.format(model_name, epoch),
                 nrow=5, padding=0)
