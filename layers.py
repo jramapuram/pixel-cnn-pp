@@ -1,4 +1,3 @@
-from utils import *
 import pdb
 import torch
 import torch.nn as nn
@@ -6,6 +5,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.utils import weight_norm as wn
 import numpy as np
+
+from .utils import *
 
 class nin(nn.Module):
     def __init__(self, dim_in, dim_out):

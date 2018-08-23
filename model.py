@@ -3,9 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-from layers import *
-from utils import *
 import numpy as np
+
+from .layers import *
+from .utils import *
+from ..utils import ones, get_dtype
 
 
 class PixelCNNLayer_up(nn.Module):
@@ -57,8 +59,8 @@ class PixelCNNLayer_down(nn.Module):
 
 
 class PixelCNN(nn.Module):
-    def __init__(self, nr_resnet=5, nr_filters=80, nr_logistic_mix=10,
-                    resnet_nonlinearity='concat_elu', input_channels=3):
+    def __init__(self, nr_resnet=5, nr_filters=160, nr_logistic_mix=10,
+                 resnet_nonlinearity='concat_elu', input_channels=3):
         super(PixelCNN, self).__init__()
         if resnet_nonlinearity == 'concat_elu' :
             self.resnet_nonlinearity = lambda x : concat_elu(x)
@@ -105,15 +107,17 @@ class PixelCNN(nn.Module):
 
     def forward(self, x, sample=False):
         # similar as done in the tf repo :
-        if self.init_padding is None and not sample:
+        if (self.init_padding is None
+            or self.init_padding.dtype != x.dtype
+            or self.init_padding.is_cuda != x.is_cuda) and not sample:
             xs = [int(y) for y in x.size()]
-            padding = Variable(torch.ones(xs[0], 1, xs[2], xs[3]), requires_grad=False)
-            self.init_padding = padding.cuda() if x.is_cuda else padding
+            self.init_padding = Variable(ones([xs[0], 1, xs[2], xs[3]], cuda=x.is_cuda,
+                                              dtype=get_dtype(x)), requires_grad=False)
 
         if sample :
             xs = [int(y) for y in x.size()]
-            padding = Variable(torch.ones(xs[0], 1, xs[2], xs[3]), requires_grad=False)
-            padding = padding.cuda() if x.is_cuda else padding
+            padding = Variable(ones([xs[0], 1, xs[2], xs[3]], cuda=x.is_cuda,
+                                    dtype=get_dtype(x)), requires_grad=False)
             x = torch.cat((x, padding), 1)
 
         ###      UP PASS    ###
