@@ -117,7 +117,7 @@ for epoch in range(args.max_epochs):
     time_ = time.time()
     model.train()
     for batch_idx, (input,_) in enumerate(train_loader):
-        input = input.cuda(async=True)
+        input = input.cuda()
         input = Variable(input)
         output = model(input)
         loss = loss_op(input, output)
@@ -143,7 +143,7 @@ for epoch in range(args.max_epochs):
     model.eval()
     test_loss = 0.
     for batch_idx, (input,_) in enumerate(test_loader):
-        input = input.cuda(async=True)
+        input = input.cuda()
         input_var = Variable(input)
         output = model(input_var)
         loss = loss_op(input_var, output)
